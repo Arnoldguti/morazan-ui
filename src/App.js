@@ -3,26 +3,38 @@ import "./App.css";
 import React from "react";
 import { Raiden } from 'raiden-ts';
 import {ethers} from 'ethers';
+import Lottie from 'react-lottie';
+import animationData from './animations/eth.json';
+
 const {parseEther} = ethers.utils;
 
 let raiden;
 
+const defaultOptions = {
+    loop: true,
+    autoplay: true,
+    animationData: animationData,
+    rendererSettings: {
+        preserveAspectRatio: "xMidYMid slice"
+    }
+};
+
 const defaultConfig = {
-    matrixServer: "https://transport.demo001.env.raiden.network",
-    additionalServices: ["https://pfs.demo001.env.raiden.network"],
+    matrixServer: process.env.REACT_APP_MATRIX_SERVER,
+    additionalServices: [process.env.REACT_APP_PFS_SERVER],
     pfsMode: "onlyAdditional"
 };
-const token = "0x59105441977ecD9d805A4f5b060E34676F50F806";
+const token = process.env.REACT_APP_TOKEN;
 
 async function askAddress(name, def) {
-    let addr = window.prompt(name + " Address or ENS name", def);
+    let addr = window.prompt(name + " Address/ENS", def);
     if (!addr.startsWith("0x")) addr = await raiden.resolveName(addr);
     return addr;
 }
 
 async function transferValue() {
-    const targetAddr = await askAddress("Target", "hub.raiden.eth");
-    const transferAmount = parseEther(window.prompt("Amount", "0.01"));
+    const targetAddr = await askAddress("Dirección de destino", "");
+    const transferAmount = parseEther(window.prompt("Cantidad", "0.02"));
     const xferId = await raiden.transfer(token, targetAddr, transferAmount);
     console.info("transfering", xferId);
     await raiden.waitTransfer(xferId);
@@ -38,6 +50,8 @@ async function main() {
     const provider = window.ethereum;
 
     // instantiate Raiden
+    // raiden = Raiden.create();
+
     raiden = await Raiden.create(
         provider,
         0,
@@ -51,20 +65,17 @@ async function main() {
     // subscribe to channels updates
     let channels;
     raiden.channels$.subscribe((c) => (channels = c));
-    console.info("Before start channel");
 
     // start Raiden
     await raiden.start();
-    console.info("Started", raiden.address);
-
-    console.info("PASA POR AQUI");
+    console.info("Raiden Already Started", raiden.address);
 
     // ensure UDC is funded
     const svtToken = await raiden.userDepositTokenAddress();
     const udcDeposit = await raiden.getUDCTotalDeposit();
     if (udcDeposit.isZero()) {
         const depositAmount = parseEther(
-            window.prompt("Amount to deposit to UDC", "10")
+            window.prompt("Cantidad a depositar en UDC", "10")
         );
         await raiden.mint(svtToken, depositAmount);
         const depositTx = await raiden.depositToUDC(depositAmount);
@@ -75,7 +86,7 @@ async function main() {
     if (Object.keys(channels[token] || {}).length === 0) {
         const hubAddr = await askAddress("Hub", "hub.raiden.eth");
         const depositAmount = parseEther(
-            window.prompt("Amount to deposit to channel", "20")
+            window.prompt("Cantidad a depositar en el canal", "20")
         );
         await raiden.mint(token, depositAmount);
         await raiden.openChannel(token, hubAddr, { deposit: depositAmount });
@@ -102,24 +113,39 @@ class App extends React.Component {
     return (
         <div className="App">
           <header className="App-header">
-            <img src={logo} className="App-logo" alt="logo" />
-            <p>
-              Morazan Project dAPP <code>src/App.js</code> and save to reload.
-            </p>
+              <div>
+                  <Lottie
+                      options={defaultOptions}
+                      height={400}
+                      width={400}
+                  />
+              </div>
+            <h2>
+              Beta Morazan Project DApp
+            </h2>
+              <h6>
+                  Crea transacciones entre dos nodos sobre la capa 2 de Ethereum, Raiden, con pagos rápidos y escalables
+              </h6>
+
             <a
                 className="App-link"
                 href="https://reactjs.org"
                 target="_blank"
                 rel="noopener noreferrer"
             >
-              Learn React
             </a>
 
-              <button onClick={this.startTransaction}>
-                  Start Raiden
+              <button
+                  variant="default"
+                  style={{ color: "black", background: "white" }}
+                  onClick={this.startTransaction}>
+                  Iniciar Raiden y Micropagos
               </button>
-              <button onClick={this.doTransaction}>
-                  Transfer money quickly
+              <button
+                  variant="default"
+                  style={{ color: "black", background: "white" }}
+                  onClick={this.doTransaction}>
+                  Transferir dinero rápido
               </button>
 
           </header>
